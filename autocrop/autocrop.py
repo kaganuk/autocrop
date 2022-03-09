@@ -10,8 +10,13 @@ from .constants import (
     MINFACE,
     GAMMA_THRES,
     GAMMA,
+    CV2_FILETYPES,
+    PILLOW_FILETYPES,
     CASCFILE,
 )
+
+COMBINED_FILETYPES = CV2_FILETYPES + PILLOW_FILETYPES
+INPUT_FILETYPES = COMBINED_FILETYPES + [s.upper() for s in COMBINED_FILETYPES]
 
 
 class ImageReadError(BaseException):
@@ -79,8 +84,16 @@ def check_positive_scalar(num):
 
 def open_file(input_filename):
     """Given a filename, returns a numpy array"""
-    with Image.open(input_filename) as img_orig:
-        return np.asarray(img_orig)
+    extension = os.path.splitext(input_filename)[1].lower()
+
+    if extension in CV2_FILETYPES:
+        # Try with cv2
+        return cv2.imread(input_filename)
+    if extension in PILLOW_FILETYPES:
+        # Try with PIL
+        with Image.open(input_filename) as img_orig:
+            return np.asarray(img_orig)
+    return None
 
 
 class Cropper:
@@ -107,9 +120,6 @@ class Cropper:
         - Cropped faces are often underexposed when taken
         out of their context. If under a threshold, sets the
         gamma to 0.9.
-    * `resize`: `bool`, default=`True`
-        - Resizes the image to the specified width and height,
-        otherwise, returns the original image pixels.
     """
 
     def __init__(
@@ -119,13 +129,11 @@ class Cropper:
         face_percent=50,
         padding=None,
         fix_gamma=True,
-        resize=True,
     ):
         self.height = check_positive_scalar(height)
         self.width = check_positive_scalar(width)
         self.aspect_ratio = width / height
         self.gamma = fix_gamma
-        self.resize = resize
 
         # Face percent
         if face_percent > 100 or face_percent < 1:
@@ -169,7 +177,7 @@ class Cropper:
             img_height, img_width = image.shape[:2]
         except AttributeError:
             raise ImageReadError
-        minface = int(np.sqrt(img_height**2 + img_width**2) / MINFACE)
+        minface = int(np.sqrt(img_height ** 2 + img_width ** 2) / MINFACE)
 
         # Create the haar cascade
         face_cascade = cv2.CascadeClassifier(self.casc_path)
@@ -202,11 +210,11 @@ class Cropper:
         image = image[pos[0] : pos[1], pos[2] : pos[3]]
 
         # Resize
-        if self.resize:
-            with Image.fromarray(image) as img:
-                image = np.asarray(img.resize((self.width, self.height)))
+        image = cv2.resize(
+            image, (self.width, self.height), interpolation=cv2.INTER_AREA
+        )
 
-        # Underexposition fix
+        # Underexposition
         if self.gamma:
             image = check_underexposed(image, gray)
         return bgr_to_rbg(image)

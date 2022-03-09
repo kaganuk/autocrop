@@ -6,7 +6,7 @@ import pytest  # noqa: F401
 import cv2
 import numpy as np
 
-from autocrop.autocrop import gamma, Cropper
+from autocrop.autocrop import gamma, Cropper, ImageReadError
 
 
 @pytest.fixture()
@@ -49,11 +49,12 @@ def test_obama_has_a_face():
     assert len(c.crop(obama)) == 500
 
 
-def test_open_file_invalid_filetype_returns_error():
+def test_open_file_invalid_filetype_returns_None():
     c = Cropper()
-    with pytest.raises(FileNotFoundError) as e:
+    with pytest.raises(ImageReadError) as e:
         c.crop("asdf")
-    assert "No such file" in str(e)
+    assert e.type == ImageReadError
+    assert "ImageReadError" in str(e)
 
 
 @pytest.mark.parametrize(
@@ -96,26 +97,3 @@ def test_detect_face_in_cropped_image(height, width, integration):
             pass
         if img_array is not None:
             assert c.crop(img_array) is not None
-
-
-@pytest.mark.parametrize("resize", [True, False])
-def test_resize(resize, integration):
-    c = Cropper(resize=resize)
-    face = "tests/test/obama.jpg"
-    img_array = c.crop(face)
-    if resize:
-        assert img_array.shape == (500, 500, 3)
-    else:
-        assert img_array.shape == (430, 430, 3)
-
-
-@pytest.mark.parametrize("face_percent", [0, 101, "asdf"])
-def test_face_percent(face_percent):
-    if isinstance(face_percent, str):
-        with pytest.raises(TypeError) as e:
-            Cropper(face_percent=face_percent)
-            assert "TypeError" in str(e)
-    else:
-        with pytest.raises(ValueError) as e:
-            Cropper(face_percent=face_percent)
-            assert "argument must be between 0 and 1" in str(e)

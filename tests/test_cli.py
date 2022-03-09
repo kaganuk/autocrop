@@ -67,7 +67,7 @@ def test_cli_no_args_means_cwd(mock_main):
     sys.argv = ["", "--no-confirm"]
     command_line_interface()
     args, _ = mock_main.call_args
-    assert args == (".", None, None, None, 500, 500, 50, True)
+    assert args == (".", None, None, None, 500, 500, 50)
 
 
 @mock.patch("autocrop.cli.input_path", lambda p: p)
@@ -192,16 +192,9 @@ def test_user_does_not_get_prompted_if_output_d_is_given(mock_confirm):
 
 @mock.patch("autocrop.cli.main", lambda *args: None)
 @mock.patch("autocrop.cli.confirmation")
-@pytest.mark.parametrize(
-    "flag",
-    [
-        ("--no-confirm"),
-        ("--skip-prompt"),
-    ],
-)
-def test_user_does_not_get_prompted_if_no_confirm(mock_confirm, flag):
+def test_user_does_not_get_prompted_if_no_confirm(mock_confirm):
     mock_confirm.return_value = False
-    sys.argv = ["", "-i", "tests/data", flag]
+    sys.argv = ["", "-i", "tests/data", "--no-confirm"]
     assert mock_confirm.call_count == 0
     command_line_interface()
     assert mock_confirm.call_count == 0
@@ -280,19 +273,3 @@ def test_extension_parameter(integration):
     command_line_interface()
     output_files = os.listdir("tests/crop")
     assert all(f.endswith(".png") for f in output_files)
-
-
-@pytest.mark.slow
-def test_no_resize_flag(integration):
-    sys.argv = [
-        "",
-        "--no-confirm",
-        "-i",
-        "tests/test",
-        "-o",
-        "tests/crop",
-        "--no-resize",
-    ]
-    command_line_interface()
-    img = cv2.imread("tests/crop/obama.jpg")
-    assert img.shape == (430, 430, 3)

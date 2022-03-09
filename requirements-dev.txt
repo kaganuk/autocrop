@@ -6,6 +6,4 @@ codecov
 attrs
 tox
 portray
-wheel
-twine
 -r requirements.txt
